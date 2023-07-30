@@ -36,8 +36,8 @@ def get_data(files: list[Path]) -> tuple[pd.DataFrame, pd.DataFrame]:
 def get_index(file: Path) -> tuple[int, int]:
     """Parse trial filenames and get the temperature and trial."""
     temperatures = {"T1": 23, "T2": 30, "T3": 40}
-    temperature_index = temperatures[file.name.strip('.csv').split('_')[0]]
-    trial_index = int(file.name.strip('.csv').split('_')[1][1:])
+    temperature_index = temperatures[file.stem.split('_')[0]]
+    trial_index = int(file.stem.split('_')[1][1:])
     return temperature_index, trial_index
 
 
