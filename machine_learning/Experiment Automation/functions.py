@@ -177,8 +177,8 @@ def collect_repeated_data(
         #! total number of readings should be even, if not then one reading is larger than the other for two channels, so data will not be recorded and is skipped
 
         stop_trail_export_csv(
-            file_name=f"T1E{i}",
-            directory_name=f"{folder_path}\\{temperature_alias}\\",
+            file_name=f"{temperature_alias}E{i}",
+            directory_name=f"{folder_path}\\",
             data_socket=data_socket,
             channels=channels,
             serial_port=ser,
