@@ -16,31 +16,34 @@ V_TO_GRAM = -25000
 lop_score_threshold = 0.2
 
 
-def main():
+def main():  # sourcery skip: remove-redundant-slice-index
     plt.ion()
-
     unfiltered_df = get_multiIndex(
         Path(
             r"C:\Users\asenn\OneDrive\School\Research\MSIPP (Georgia 2023)\Automated Data"
         )
     )
-    filtered_df = pd.DataFrame(
-        index=unfiltered_df.index, columns=unfiltered_df.columns
-    )  # Initilize empty filtered_df with correct indexing, no data
 
-    # trim_start, trim_end = plot_first_five('T1', df=unfiltered_df)
-    plot_first_five(unfiltered_df)
+    # Initilize empty filtered_df with correct indexing, no data
+    filtered_df = pd.DataFrame(index=unfiltered_df.index, columns=unfiltered_df.columns)
 
-    # TODO: Use async programming here
-    # filtered_df.loc[('T1'), 'trial_data'][0:2] == unfiltered_df.loc[('T1'), 'trial_data'][0:2].apply(lambda x: filter_and_trim_data(x, trim_start=0, trim_end=0))  # type: ignore
-    access_data(filtered_df, "T1", start_trial_no=1, end_trial__no=3) == access_data(
-        unfiltered_df, "T1", start_trial_no=1, end_trial__no=3
-    ).apply(lambda df: filter_and_trim_data(df, trim_start=0, trim_end=200))
+    print(unfiltered_df.loc[("T2"), "trial_data"][0:6][2])
 
-    display(filtered_df)
-    # TODO: Use async programming here
+    trim_start, trim_end = plot_first_five(unfiltered_df)
 
-    pd.set_option("display.max_rows", 100)
+    print(unfiltered_df.loc[("T2"), "trial_data"][0:6][2])
+
+    data_to_apply = unfiltered_df.loc[("T2"), "trial_data"][0:6].apply(
+        lambda df: filter_data(df)
+    )
+
+    print(data_to_apply)
+    # filtered_df.loc[("T2"), "trial_data"][0:6] = data_to_apply
+
+    # # Compare to first printed DataFrame
+    # print(filtered_df.loc[("T2"), "trial_data"][0])
+
+    # # # TODO: Use async programming here
 
 
 def get_multiIndex(folder: Path) -> pd.DataFrame:
@@ -95,31 +98,32 @@ def filter_and_trim_data(
     return unfiltered_df.query(f"scores < {lop_score_threshold}")
 
 
-def filter_data(unfiltered_df: pd.DataFrame) -> pd.DataFrame:
+def filter_data(df: pd.DataFrame) -> pd.DataFrame:
     """Filters input DataFrame for noise using LOP. Returns filtered DataFrame."""
+
+    df.fillna(0, inplace=True)
     m = loop.LocalOutlierProbability(
-        unfiltered_df.drop(columns="Load (g)"), extent=1, n_neighbors=20
+        df.drop(columns="Load (g)"), extent=1, n_neighbors=20
     ).fit()  # Used to find scores
     scores = (
         m.local_outlier_probabilities
     )  # this is an attribute after performing LocalOutlierProbability()
-    unfiltered_df["scores"] = scores.tolist()  # Adding scores column to lop_df
-    unfiltered_df.loc["Time (s)"] = unfiltered_df["Time (s)"].sub(
-        unfiltered_df["Time (s)"].iloc[0]
-    )
-    unfiltered_df.set_index(keys="Time (s)", inplace=True)
-    return unfiltered_df.query(f"scores < {lop_score_threshold}")
+    df_copy = df.copy()
+    df_copy["scores"] = scores.tolist()  # Adding scores column to lop_df
+    # df.loc["Time (s)"] = df["Time (s)"].sub(df["Time (s)"].iloc[0])
+    return df_copy.query(f"scores < {lop_score_threshold}")
 
 
 def plot_first_five(df):
     fig, ax = plt.subplots()
 
     # Filter data
-    first_five_unfiltered = access_data(df, "T1", start_trial_no=1, end_trial__no=5)
-    first_five_filtered = first_five_unfiltered.apply(lambda df: filter_data(df))
-    first_five_filtered.apply(
-        lambda df: plot_temp(df=df, ax=ax, color="red")
-    )  # Plot initial filtered untrimmed
+    first_five_filtered = df.loc[("T2"), "trial_data"][:6].apply(
+        lambda df: filter_data(df)
+    )
+
+    # Plot initial filtered untrimmed
+    first_five_filtered.apply(lambda df: plot_temp(df=df, ax=ax, color="red"))
 
     # Trim data initial parameters, not yet modifiying data through trimming
     trim_start, trim_end = (
@@ -130,39 +134,30 @@ def plot_first_five(df):
     trim_start, trim_end = int(trim_start), int(trim_end)
 
     # Plot trimmed and filtered data
-    initial_trim = first_five_filtered.apply(
+    first_five_filtered_trimmed = first_five_filtered.apply(
         lambda df: trim_data(df=df, trim_start=trim_start, trim_end=trim_end)
     )
-    initial_trim.apply(lambda df: plot_temp(df=df, ax=ax, color="blue"))
+    first_five_filtered_trimmed.apply(lambda df: plot_temp(df=df, ax=ax, color="blue"))
     fig.show()
 
     while hash(input("Satisfied? Y, otherwise press anything: ")) != hash("Y"):
-        start, end = (
+        trim_start, trim_end = (
             input("Enter trim start and trim end values as tuple  as start, end: ")
             .replace(",", "")
             .split()
         )
+
         ax.clear()
         trim_start, trim_end = int(trim_start), int(trim_end)
         first_five_filtered.apply(lambda df: plot_temp(df=df, ax=ax, color="red"))
         first_five_filtered.apply(lambda df: trim_data(df=df, trim_start=trim_start, trim_end=trim_end)).apply(lambda df: plot_temp(df=df, ax=ax, color="blue"))  # type: ignore
         fig.show()
 
+    return trim_start, trim_end
     # access_data(df, "T1", start_trial_no=1, end_trial__no=5).apply(trim_data(unfiltered_df = df, trim_start=start, trim_end=end)).apply(lambda df: plot_temp(df=df, ax=ax))
 
     ## TODO plot ax.scatter first five first, filtered and TRIMMED
     # access_data(df, "T1", start_trial_no=start, end_trial__no=end)
-
-
-#  if input('Satisfactory? Y/N') == 'N':
-
-
-def access_data(df: pd.DataFrame, temp: str, start_trial_no: int, end_trial__no: int, exp: str = None):  # type: ignore
-    if exp:  # Truthy
-        accessed_data = df.loc[(temp, exp), "trial_data"]
-    else:
-        accessed_data = df.loc[(temp), "trial_data"][(start_trial_no - 1) : (end_trial__no - 1)]  # type: ignore
-    return accessed_data
 
 
 def plot_temp(df, ax, color: str, size=0.2):
